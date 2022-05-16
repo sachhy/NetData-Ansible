@@ -1,0 +1,67 @@
+---
+- hosts: frontend
+  tasks:
+
+    - name: disabling selinux
+      selinux:
+        state: disabled
+
+    - name: disable firewalld
+      systemd:
+        name: firewalld
+        enabled: no
+
+    - name: adding CentOS8 nginx repo
+      when: ansible_os_family == "RedHat" and ansible_distribution_major_version|int == 8
+      yum_repository:
+        name: nginx
+        description: Offiical Nginx Repository for CentOS
+        baseurl: http://nginx.org/packages/centos/8/x86_64/
+        gpgcheck: no
+        enabled: yes
+
+    - name: installing nginx components
+      package: name={{item}} state=installed
+      with_items:
+        - nginx
+
+    - name: copy the nginx config file and restart nginx
+      copy:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+      notify: restart nginx
+
+    - name: starting nginx
+      service: name=nginx state=started enabled=yes
+
+  handlers:
+  - name: restart nginx
+    service: name=nginx state=restarted
+
+- name: Install Netdata
+  hosts: backend
+
+  tasks:
+  - name: Download the installation script
+    get_url:
+      url: https://my-netdata.io/kickstart.sh
+      dest: ~/kickstart.sh
+      mode: +x
+
+  - name: Install Netdata
+    command: ~/kickstart.sh --dont-wait
+
+  - name: copy the netdata config file and restart netdata
+    copy:
+      src: templates/netdata.conf.j2
+      dest: /etc/netdata/netdata.conf
+    notify: restart netdata
+
+  - name: Cleanup installation script
+    file:
+      path: ~/kickstart.sh
+      state: absent
+
+  handlers:
+    - name: restart netdata
+      service: name=netdata state=restarted

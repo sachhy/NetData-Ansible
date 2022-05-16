@@ -1,0 +1,17 @@
+events {}
+http {
+    upstream backend {
+        # the Netdata server
+        server 3.108.54.39:19999;
+    }
+
+    server {
+        # nginx listens to this
+        listen 80;
+        server_name  $hostname;
+
+        location / {
+	    proxy_pass http://backend;
+        }
+    }
+}
